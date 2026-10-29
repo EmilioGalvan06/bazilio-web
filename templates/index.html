@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bazilio</title>
+<style>
+ :root{--bg:#f6f6f4;--fg:#1c1c1c;--card:#fff;--line:#d9d9d4;--acc:#2f5fd0;--err:#b3261e}
+ @media (prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--card:#222;--line:#3a3a3a;--acc:#7aa2ff;--err:#ff8a80}}
+ *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif}
+ main{max-width:760px;margin:0 auto;padding:16px}
+ h1{font-size:1.3rem;margin:.2rem 0 1rem}
+ textarea{width:100%;height:210px;font:15px ui-monospace,Menlo,monospace;padding:10px;border:1px solid var(--line);
+   border-radius:10px;background:var(--card);color:var(--fg);resize:vertical}
+ .teclas{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+ button{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+ .teclas button{font-family:ui-monospace,monospace;padding:8px 11px}
+ button.prim{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+ button:disabled{opacity:.5}
+ .acciones{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+ section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px}
+ h2{font-size:1rem;margin:0 0 8px}
+ pre{margin:0;white-space:pre-wrap;word-break:break-word;font:14px ui-monospace,monospace}
+ pre.error{color:var(--err)}
+ .hoja img{width:100%;height:auto;background:#fff;border-radius:6px;margin-bottom:8px}
+ audio{width:100%} .oculto{display:none} a{color:var(--acc)}
+</style></head><body><main>
+<h1>Bazilio</h1>
+<textarea id="codigo" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+<div class="teclas" id="teclas"></div>
+<div class="acciones">
+ <button class="prim" id="btn">▶ Compilar</button>
+ <button id="ej">Cargar ejemplo</button>
+</div>
+<section id="sAudio" class="oculto"><h2>Audio</h2><audio id="audio" controls></audio></section>
+<section id="sHoja" class="oculto"><h2>Partitura</h2><div class="hoja" id="hoja"></div>
+ <a id="pdf" target="_blank">Abrir PDF</a></section>
+<section id="sSalida" class="oculto"><h2>Consola</h2><pre id="salida"></pre></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const EJEMPLO = `### Prueba ###
+Main |:
+    notas <- {C4 D4 E4 C4 B3 A3}
+    <:> notas
+:|
+`;
+const TECLAS = ["|:", ":|", "<-", "<:>", "<w>", "<?>", "<<", "8<", "#", "{", "}", "[", "]", "(", ")", "/=", "<=", ">=", "%"];
+try { $("codigo").value = localStorage.getItem("bzl") || EJEMPLO; } catch { $("codigo").value = EJEMPLO; }
+for (const t of TECLAS) {
+  const b = document.createElement("button"); b.textContent = t; b.type = "button";
+  b.onclick = () => { const a = $("codigo"), i = a.selectionStart;
+    a.setRangeText(t, i, a.selectionEnd, "end"); a.focus(); };
+  $("teclas").append(b);
+}
+$("ej").onclick = () => { $("codigo").value = EJEMPLO; };
+$("codigo").oninput = () => { try { localStorage.setItem("bzl", $("codigo").value); } catch {} };
+
+$("btn").onclick = async () => {
+  $("btn").disabled = true; $("btn").textContent = "Compilando…";
+  try {
+    const r = await fetch("/api/compilar", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo: $("codigo").value }) });
+    const d = await r.json();
+    $("sSalida").classList.remove("oculto");
+    $("salida").textContent = d.salida; $("salida").className = d.ok ? "" : "error";
+    $("sHoja").classList.toggle("oculto", !(d.paginas && d.paginas.length));
+    $("hoja").innerHTML = ""; (d.paginas || []).forEach(u => { const i = new Image(); i.src = u; $("hoja").append(i); });
+    if (d.pdf) $("pdf").href = d.pdf;
+    $("sAudio").classList.toggle("oculto", !d.audio);
+    if (d.audio) { $("audio").src = d.audio; $("audio").load(); }
+  } catch (e) {
+    $("sSalida").classList.remove("oculto"); $("salida").className = "error";
+    $("salida").textContent = "No se pudo conectar con el servidor.";
+  }
+  $("btn").disabled = false; $("btn").textContent = "▶ Compilar";
+};
+</script></body></html>

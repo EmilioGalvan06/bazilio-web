@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: bazilio
+    runtime: docker
+    plan: free
+    healthCheckPath: /salud
