@@ -7,6 +7,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         lilypond timidity freepats ffmpeg poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# timidity: la configuración por defecto apunta a un soundfont que no está instalado.
+# Se reescribe para usar los instrumentos de freepats; si faltan, la construcción falla a propósito.
+RUN if [ -f /etc/timidity/freepats.cfg ]; then \
+        echo "source /etc/timidity/freepats.cfg" > /etc/timidity/timidity.cfg; \
+    else echo "ERROR: falta /etc/timidity/freepats.cfg" >&2; ls -R /etc/timidity >&2; exit 1; fi
+
 # ANTLR 4.13.2 (misma versión que el runtime de requirements.txt)
 RUN curl -fsSL -o /opt/antlr.jar https://www.antlr.org/download/antlr-4.13.2-complete.jar
 
